@@ -7,17 +7,13 @@
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; text-align: center; padding: 20px; background-color: #f8f9fa; }
-        .card { background: white; border-radius: 15px; padding: 40px 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-top: 20px; max-width: 400px; margin-left: auto; margin-right: auto; }
-        h1 { color: #333; font-size: 26px; margin-bottom: 10px; font-weight: 800; }
-        p { color: #666; line-height: 1.6; }
-        
-        #timer { font-size: 48px; color: #ff4b4b; font-weight: bold; margin: 25px 0; font-family: monospace; display:none; }
-        
-        .btn { display:none; width: 100%; padding: 15px; background: #06c755; color: white; border: none; border-radius: 12px; font-size: 18px; font-weight: bold; cursor: pointer; transition: transform 0.1s; }
-        .btn:active { transform: scale(0.98); background: #05b34c; }
-        .btn:disabled { background: #ccc; pointer-events: none; }
-        
-        .error-text { color: #e74c3c; font-weight: bold; }
+        .card { background: white; border-radius: 15px; padding: 30px 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-top: 20px; }
+        h1 { color: #333; font-size: 24px; margin-bottom: 10px; }
+        #timer { font-size: 48px; color: #ff4b4b; font-weight: bold; margin: 20px 0; font-family: monospace; display:none; }
+        .btn { display:none; width: 100%; padding: 15px; background: #06c755; color: white; border: none; border-radius: 8px; font-size: 18px; font-weight: bold; cursor: pointer; }
+        .btn:active { background: #05b34c; }
+        .btn:disabled { background: #ccc; }
+        p { color: #666; }
     </style>
 </head>
 <body>
@@ -33,7 +29,7 @@
 
     <script>
         // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
-        // 【設定區】 (已保留您的設定)
+        // 【已幫您填入您的資料】
         
         const AIRTABLE_TOKEN = 'patWFQeH1vf1ga28J.5d619ffcd3e5e85346fef6d8fd1ad308a5e4e951e630ea7392dff7fe4274662a'; 
         const BASE_ID = 'appg9LVwwgUcig6Ze';          
@@ -43,21 +39,16 @@
         // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
         let recordId = null; 
-        let currentUserId = null; // 還是會試著抓 ID，但抓不到就算了
 
         async function main() {
-            // 1. 初始化 LIFF (嘗試抓 ID，但不強制登入)
+            // 初始化 LIFF
             try {
                 await liff.init({ liffId: LIFF_ID });
-                if (liff.isLoggedIn()) {
-                    const profile = await liff.getProfile();
-                    currentUserId = profile.userId; // 有抓到就記下來，供老闆參考
-                }
             } catch (err) {
-                console.log("LIFF not ready (但沒關係，我們可以繼續)");
+                console.error("LIFF Init Error", err);
             }
             
-            // 2. 抓取網址上的禮物 ID
+            // 抓取網址上的禮物 ID
             const urlParams = new URLSearchParams(window.location.search);
             const giftId = urlParams.get('id');
 
@@ -66,12 +57,11 @@
                 return;
             }
 
-            // 3. 直接檢查禮物狀態 (不再檢查「人」的歷史紀錄)
-            await checkGiftStatus(giftId);
+            // 去 Airtable 查狀態
+            await checkStatus(giftId);
         }
 
-        async function checkGiftStatus(giftId) {
-            // 只看這張券的 Gift_ID 是否存在，以及是否被用過
+        async function checkStatus(giftId) {
             const url = `https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}?filterByFormula={Gift_ID}='${giftId}'`;
             
             try {
@@ -92,11 +82,11 @@
                 if (status === 'Redeemed') {
                     showError("❌ 此禮物已失效", "這杯咖啡已經被領過囉！");
                 } else {
-                    // 通過！顯示領取畫面
                     showActive();
                 }
             } catch (e) {
-                showError("連線錯誤", "無法連接資料庫");
+                console.error(e);
+                showError("連線錯誤", "無法連接資料庫，請檢查 Token 與 ID");
             }
         }
 
@@ -110,7 +100,7 @@
 
         function showError(title, msg) {
             document.getElementById('status-text').innerText = title;
-            document.getElementById('status-text').className = "error-text";
+            document.getElementById('status-text').style.color = "#888";
             document.getElementById('sub-text').innerText = msg;
             document.getElementById('timer').style.display = "none";
             document.getElementById('btn-redeem').style.display = "none";
@@ -124,22 +114,15 @@
             } 
             
             const btn = document.getElementById('btn-redeem');
-            btn.innerText = "正在核銷...";
+            btn.innerText = "連線寫入中...";
             btn.disabled = true;
 
-            // 準備資料：狀態改為已領取、寫入時間、寫入領取人(如果有的話)
+            // 準備要更新的資料 (只更新 Status)
             const data = {
                 fields: {
-                    Status: 'Redeemed',
-                    Redeemed_Time: new Date().toISOString()
+                    Status: 'Redeemed'
                 }
             };
-            
-            // 如果有抓到 User ID，就順便記下來 (方便您以後統計)
-            // 如果沒抓到 (例如用電腦瀏覽器開)，就留空，不擋人
-            if (currentUserId) {
-                data.fields.Receiver_ID = currentUserId;
-            }
 
             const updateUrl = `https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}/${recordId}`;
             
@@ -154,16 +137,17 @@
                 });
 
                 if (response.ok) {
-                    alert("✅ 核銷成功！\n享受您的咖啡吧！");
+                    alert("✅ 核銷成功！狀態已更新。");
                     location.reload(); 
                 } else {
                     const err = await response.json();
-                    alert("⚠️ 核銷失敗：" + err.error.message);
+                    alert("⚠️ 核銷失敗！錯誤原因：\n" + err.error.type + ": " + err.error.message);
                     btn.innerText = "店員核銷請點此";
                     btn.disabled = false;
                 }
             } catch (e) {
-                alert("❌ 連線錯誤");
+                alert("❌ 連線發生錯誤：" + e);
+                btn.innerText = "店員核銷請點此";
                 btn.disabled = false;
             }
         }
