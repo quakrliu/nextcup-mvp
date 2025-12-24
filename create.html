@@ -193,12 +193,16 @@
             document.getElementById('title').innerText = "禮物包裝完成！";
             document.getElementById('desc').innerHTML = "這是您<span class='highlight'>唯一的送禮機會</span><br>趕快傳給朋友吧！";
             
-            const redeemLink = `https://${MY_DOMAIN}/redeem.html?id=${giftId}`;
+            // ▼▼▼ 請確認這行已經改成這樣 ▼▼▼
+            // 這會讓朋友點擊時，直接在 LINE 內部開啟 (不用登入)
+            const redeemLink = `https://liff.line.me/${LIFF_ID}?id=${giftId}`; 
+            // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+            
             const shareText = `嘿！這家咖啡不錯，我請你喝一杯！點這裡領取： ${redeemLink}`;
             const lineUrl = `https://line.me/R/msg/text/?${encodeURIComponent(shareText)}`;
             
             const btn = document.getElementById('btn-share');
-            btn.style.display = 'flex'; // 顯示按鈕
+            btn.style.display = 'flex';
             btn.href = lineUrl;
         }
 
