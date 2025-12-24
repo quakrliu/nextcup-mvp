@@ -3,151 +3,222 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NextCup 製作禮物</title>
+    <title>NextCup 禮物製作</title>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; text-align: center; padding: 20px; background-color: #fff8e1; }
-        .card { background: white; border-radius: 15px; padding: 30px 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-top: 40px; }
-        h1 { color: #d35400; font-size: 24px; margin-bottom: 10px; }
-        p { color: #666; line-height: 1.6; }
-        .btn { display:none; width: 100%; padding: 15px; background: #06c755; color: white; border: none; border-radius: 8px; font-size: 18px; font-weight: bold; cursor: pointer; text-decoration: none; margin-top: 20px; }
-        .btn.disabled { background-color: #ccc; pointer-events: none; }
-        .error { color: #ff4b4b; font-weight: bold; }
+        /* 整體背景：溫暖的漸層色 */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            text-align: center;
+            padding: 20px;
+            background: linear-gradient(135deg, #fff8e1 0%, #ffe0b2 100%); /* 暖黃到暖橙漸層 */
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* 卡片設計：更立體、更圓潤 */
+        .card {
+            background: white;
+            border-radius: 24px; /* 更大的圓角 */
+            padding: 40px 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1); /* 更柔和的陰影 */
+            width: 100%;
+            max-width: 400px; /* 限制最大寬度，大螢幕更好看 */
+            box-sizing: border-box;
+            transition: all 0.3s ease;
+        }
+
+        /* 頂部插圖區域 */
+        .hero-illustration {
+            font-size: 80px;
+            margin-bottom: 20px;
+            animation: float 3s ease-in-out infinite; /* 加入輕微漂浮動畫 */
+        }
+
+        /* 標題設計 */
+        h1 {
+            color: #d35400;
+            font-size: 28px;
+            font-weight: 800;
+            margin: 0 0 15px 0;
+            letter-spacing: -0.5px;
+        }
+
+        /* 描述文字 */
+        p {
+            color: #666;
+            line-height: 1.8;
+            font-size: 16px;
+            margin-bottom: 30px;
+        }
+        /* 強調文字 */
+        .highlight {
+            color: #e67e22;
+            font-weight: bold;
+        }
+
+        /* 按鈕設計：漸層、圖示、互動感 */
+        .btn {
+            display: none; /* 預設隱藏 */
+            width: 100%;
+            padding: 18px;
+            /* LINE 官方綠色漸層 */
+            background: linear-gradient(to right, #06c755, #00b900);
+            color: white;
+            border: none;
+            border-radius: 16px; /* 圓潤按鈕 */
+            font-size: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            text-decoration: none;
+            box-shadow: 0 4px 15px rgba(6, 199, 85, 0.3); /* 按鈕綠色陰影 */
+            transition: all 0.2s ease;
+            
+            /* 讓圖示和文字居中對齊 */
+            flex-direction: row;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* 按鈕圖示間距 */
+        .btn i {
+            margin-right: 12px;
+            font-size: 24px;
+        }
+
+        /* 按鈕按下效果 */
+        .btn:active {
+            transform: scale(0.98); /* 輕微縮小 */
+            box-shadow: 0 2px 5px rgba(6, 199, 85, 0.2);
+        }
+
+        /* 錯誤狀態按鈕 */
+        .btn.disabled {
+            background: #bdc3c7;
+            box-shadow: none;
+            pointer-events: none;
+        }
+        .error-title { color: #e74c3c; }
+
+        /* 漂浮動畫定義 */
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        /* 載入中樣式 */
+        .loading-state { opacity: 0.7; }
     </style>
 </head>
 <body>
 
     <div class="card">
-        <h1 id="title">🎁 正在確認資格...</h1>
+        <div class="hero-illustration" id="hero-icon">🎁</div>
+        
+        <h1 id="title" class="loading-state">正在確認資格...</h1>
         <p id="desc">系統正在查詢您的送禮紀錄<br>請稍候...</p>
         
-        <a id="btn-share" class="btn" href="#">LINE 給朋友</a>
+        <a id="btn-share" class="btn" href="#">
+            <i class="fab fa-line"></i> <span>LINE 給朋友</span>
+        </a>
     </div>
 
     <script>
         // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
-        // 【設定區】
+        // 【設定區】 (已保留您的設定)
         
         const AIRTABLE_TOKEN = 'patWFQeH1vf1ga28J.5d619ffcd3e5e85346fef6d8fd1ad308a5e4e951e630ea7392dff7fe4274662a'; 
         const BASE_ID = 'appg9LVwwgUcig6Ze';          
         const TABLE_ID = 'tbl3Y1Jq4VmlcjQgI';         
-        const LIFF_ID = '2008760789-8sSFZSxG'; // 您的 LIFF ID
-        
-        // ⚠️ 請確認您的短網址 (不含 https://)
+        const LIFF_ID = '2008760789-8sSFZSxG'; 
         const MY_DOMAIN = 'nextcup-mvp.vercel.app'; 
 
         // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
         async function main() {
-            // 1. 初始化 LIFF 並登入 (為了拿到 User ID)
             try {
                 await liff.init({ liffId: LIFF_ID });
                 if (!liff.isLoggedIn()) {
-                    liff.login(); // 沒登入就強制登入
-                    return;
+                    liff.login(); return;
                 }
             } catch (err) {
-                console.error("LIFF Error", err);
-                alert("LIFF 初始化失敗");
-                return;
+                console.error("LIFF Error", err); alert("LIFF 初始化失敗"); return;
             }
 
-            // 2. 取得使用者 ID
             const profile = await liff.getProfile();
             const userId = profile.userId;
 
-            // 3. 檢查是否已經送過
             const hasSent = await checkHistory(userId);
             
+            document.getElementById('title').classList.remove('loading-state'); // 移除載入中樣式
+
             if (hasSent) {
                 showError("🚫 您已經送過禮物囉！", "每人限送一次。\n把機會讓給其他人吧！");
             } else {
-                // 4. 沒送過 -> 開始製作
                 document.getElementById('title').innerText = "🎁 正在包裝禮物...";
+                // 這裡可以換成包裝中的動圖
+                // document.getElementById('hero-icon').innerText = "⚙️"; 
                 createGift(userId);
             }
         }
 
         async function checkHistory(userId) {
-            // 去 Airtable 搜尋有沒有這個 Sender_ID
             const url = `https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}?filterByFormula={Sender_ID}='${userId}'`;
-            
             try {
-                const response = await fetch(url, {
-                    headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` }
-                });
+                const response = await fetch(url, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
                 const data = await response.json();
-                // 如果找到大於 0 筆資料，代表送過了
                 return data.records.length > 0;
-            } catch (e) {
-                console.error(e);
-                return false; // 連線失敗預設當作沒送過，或可改成阻擋
-            }
+            } catch (e) { console.error(e); return false; }
         }
 
         async function createGift(userId) {
             const newGiftId = 'Gift_' + Date.now();
-
-            const data = {
-                fields: {
-                    Gift_ID: newGiftId,
-                    Status: 'Active',
-                    Sender_ID: userId  // 👈 這次會把是誰送的記下來！
-                }
-            };
-
+            const data = { fields: { Gift_ID: newGiftId, Status: 'Active', Sender_ID: userId } };
             const url = `https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}`;
 
             try {
                 const response = await fetch(url, {
                     method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${AIRTABLE_TOKEN}`,
-                        'Content-Type': 'application/json'
-                    },
+                    headers: { 'Authorization': `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
                     body: JSON.stringify(data)
                 });
-
-                if (response.ok) {
-                    showSuccess(newGiftId);
-                } else {
-                    alert("製作失敗，請重新整理頁面試試看");
-                }
-            } catch (error) {
-                console.error(error);
-                alert("連線錯誤");
-            }
+                if (response.ok) { showSuccess(newGiftId); } else { alert("製作失敗，請重試"); }
+            } catch (error) { console.error(error); alert("連線錯誤"); }
         }
 
         function showSuccess(giftId) {
-            document.getElementById('title').innerText = "🎉 禮物包裝完成！";
-            document.getElementById('desc').innerText = "這是您唯一的送禮機會\n趕快傳給朋友吧！";
+            // 成功時的 UI
+            document.getElementById('hero-icon').innerText = "🎉"; // 換成慶祝圖示
+            document.getElementById('title').innerText = "禮物包裝完成！";
+            document.getElementById('desc').innerHTML = "這是您<span class='highlight'>唯一的送禮機會</span><br>趕快傳給朋友吧！";
             
             const redeemLink = `https://${MY_DOMAIN}/redeem.html?id=${giftId}`;
             const shareText = `嘿！這家咖啡不錯，我請你喝一杯！點這裡領取： ${redeemLink}`;
             const lineUrl = `https://line.me/R/msg/text/?${encodeURIComponent(shareText)}`;
             
             const btn = document.getElementById('btn-share');
-            btn.style.display = 'block';
+            btn.style.display = 'flex'; // 改用 flex 讓圖文居中
             btn.href = lineUrl;
         }
 
         function showError(title, msg) {
+            // 錯誤時的 UI
+            document.getElementById('hero-icon').innerText = "🚷";
             document.getElementById('title').innerText = title;
-            document.getElementById('title').className = "error";
+            document.getElementById('title').className = "error-title";
             document.getElementById('desc').innerText = msg;
             
             const btn = document.getElementById('btn-share');
-            btn.style.display = 'block';
-            btn.innerText = "關閉視窗";
-            btn.className = "btn disabled"; // 讓按鈕變灰
-            btn.style.backgroundColor = "#ccc";
-            btn.onclick = () => liff.closeWindow();
+            btn.style.display = 'flex';
+            btn.innerHTML = "<span>關閉視窗</span>"; // 移除圖示，只留文字
+            btn.className = "btn disabled";
+            btn.onclick = (e) => { e.preventDefault(); liff.closeWindow(); };
         }
 
-        // 啟動
         main();
-
     </script>
 </body>
 </html>
