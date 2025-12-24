@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NextCup 禮物兌換</title>
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <style>
+        /* 簡單的樣式：置中、大字體 */
+        body { font-family: sans-serif; text-align: center; padding: 20px; }
+        #timer { font-size: 40px; color: #ff4b4b; font-weight: bold; }
+        #btn-redeem { padding: 15px 30px; background: #06c755; color: white; border: none; border-radius: 10px; font-size: 18px; display: none; }
+    </style>
+</head>
+<body>
+
+    <h1>☕️ 您有一杯咖啡待領取</h1>
+    <p>來自好友的禮物</p>
+    
+    <div id="profile-area">讀取中...</div>
+    
+    <div id="timer">02:00:00</div>
+    
+    <br>
+    <button id="btn-redeem" onclick="redeemGift()">店員核銷請點此</button>
+
+    <script>
+        // 3. 初始化 LIFF
+        async function main() {
+            // 把剛剛後台拿到的 LIFF ID 填在這裡
+            await liff.init({ liffId: "YOUR_LIFF_ID_HERE" });
+
+            if (!liff.isLoggedIn()) {
+                // 如果沒登入，強制跳轉去 LINE 登入畫面
+                liff.login();
+                return;
+            }
+
+            // 4. 獲取用戶資料 (抓取 User B 的身份)
+            const profile = await liff.getProfile();
+            document.getElementById('profile-area').innerText = `哈囉，${profile.displayName}！`;
+            document.getElementById('btn-redeem').style.display = "inline-block";
+            
+            // 這裡可以把 profile.userId 傳給後端去檢查是否為「回頭車」(No U-Turn)
+        }
+
+        // 5. 執行核銷
+        function redeemGift() {
+            // 跳出輸入密碼框
+            let code = prompt("請店員輸入核銷密碼：");
+            if (code === "8888") {
+                alert("✅ 核銷成功！享有您的咖啡吧！");
+                liff.closeWindow(); // 關閉視窗
+            } else {
+                alert("❌ 密碼錯誤");
+            }
+        }
+
+        main();
+    </script>
+</body>
+</html>
