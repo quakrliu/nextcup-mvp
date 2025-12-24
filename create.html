@@ -12,21 +12,22 @@
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             text-align: center;
             padding: 20px;
-            background: linear-gradient(135deg, #fff8e1 0%, #ffe0b2 100%); /* 暖黃到暖橙漸層 */
+            background: linear-gradient(135deg, #fff8e1 0%, #ffe0b2 100%);
             min-height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
+            box-sizing: border-box; /* 確保 padding 不會撐開寬度 */
         }
 
-        /* 卡片設計：更立體、更圓潤 */
+        /* 卡片設計 */
         .card {
             background: white;
-            border-radius: 24px; /* 更大的圓角 */
+            border-radius: 24px;
             padding: 40px 30px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1); /* 更柔和的陰影 */
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
             width: 100%;
-            max-width: 400px; /* 限制最大寬度，大螢幕更好看 */
+            max-width: 400px;
             box-sizing: border-box;
             transition: all 0.3s ease;
         }
@@ -35,7 +36,7 @@
         .hero-illustration {
             font-size: 80px;
             margin-bottom: 20px;
-            animation: float 3s ease-in-out infinite; /* 加入輕微漂浮動畫 */
+            animation: float 3s ease-in-out infinite;
         }
 
         /* 標題設計 */
@@ -54,27 +55,30 @@
             font-size: 16px;
             margin-bottom: 30px;
         }
-        /* 強調文字 */
         .highlight {
             color: #e67e22;
             font-weight: bold;
         }
 
-        /* 按鈕設計：漸層、圖示、互動感 */
+        /* --- 按鈕設計重點修改 --- */
         .btn {
             display: none; /* 預設隱藏 */
-            width: 100%;
-            padding: 18px;
+            width: auto; /* 不再強制 100% */
+            margin: 20px auto 0; /* 上方留白，左右置中 */
+            padding: 15px 30px; /* 調整內距，讓按鈕看起來更紮實 */
+            
             /* LINE 官方綠色漸層 */
-            background: linear-gradient(to right, #06c755, #00b900);
+            background: linear-gradient(to right, #06c755, #02b902);
             color: white;
             border: none;
-            border-radius: 16px; /* 圓潤按鈕 */
-            font-size: 20px;
+            border-radius: 50px; /* 變成全圓角設計 */
+            font-size: 18px;
             font-weight: bold;
             cursor: pointer;
             text-decoration: none;
-            box-shadow: 0 4px 15px rgba(6, 199, 85, 0.3); /* 按鈕綠色陰影 */
+            
+            /* 立體陰影 */
+            box-shadow: 0 4px 15px rgba(6, 199, 85, 0.4);
             transition: all 0.2s ease;
             
             /* 讓圖示和文字居中對齊 */
@@ -85,14 +89,14 @@
 
         /* 按鈕圖示間距 */
         .btn i {
-            margin-right: 12px;
+            margin-right: 10px;
             font-size: 24px;
         }
 
         /* 按鈕按下效果 */
         .btn:active {
-            transform: scale(0.98); /* 輕微縮小 */
-            box-shadow: 0 2px 5px rgba(6, 199, 85, 0.2);
+            transform: scale(0.98);
+            box-shadow: 0 2px 8px rgba(6, 199, 85, 0.3);
         }
 
         /* 錯誤狀態按鈕 */
@@ -103,13 +107,10 @@
         }
         .error-title { color: #e74c3c; }
 
-        /* 漂浮動畫定義 */
         @keyframes float {
             0%, 100% { transform: translateY(0); }
             50% { transform: translateY(-10px); }
         }
-
-        /* 載入中樣式 */
         .loading-state { opacity: 0.7; }
     </style>
 </head>
@@ -153,14 +154,12 @@
 
             const hasSent = await checkHistory(userId);
             
-            document.getElementById('title').classList.remove('loading-state'); // 移除載入中樣式
+            document.getElementById('title').classList.remove('loading-state');
 
             if (hasSent) {
                 showError("🚫 您已經送過禮物囉！", "每人限送一次。\n把機會讓給其他人吧！");
             } else {
                 document.getElementById('title').innerText = "🎁 正在包裝禮物...";
-                // 這裡可以換成包裝中的動圖
-                // document.getElementById('hero-icon').innerText = "⚙️"; 
                 createGift(userId);
             }
         }
@@ -190,8 +189,7 @@
         }
 
         function showSuccess(giftId) {
-            // 成功時的 UI
-            document.getElementById('hero-icon').innerText = "🎉"; // 換成慶祝圖示
+            document.getElementById('hero-icon').innerText = "🎉";
             document.getElementById('title').innerText = "禮物包裝完成！";
             document.getElementById('desc').innerHTML = "這是您<span class='highlight'>唯一的送禮機會</span><br>趕快傳給朋友吧！";
             
@@ -200,12 +198,11 @@
             const lineUrl = `https://line.me/R/msg/text/?${encodeURIComponent(shareText)}`;
             
             const btn = document.getElementById('btn-share');
-            btn.style.display = 'flex'; // 改用 flex 讓圖文居中
+            btn.style.display = 'flex'; // 顯示按鈕
             btn.href = lineUrl;
         }
 
         function showError(title, msg) {
-            // 錯誤時的 UI
             document.getElementById('hero-icon').innerText = "🚷";
             document.getElementById('title').innerText = title;
             document.getElementById('title').className = "error-title";
@@ -213,7 +210,7 @@
             
             const btn = document.getElementById('btn-share');
             btn.style.display = 'flex';
-            btn.innerHTML = "<span>關閉視窗</span>"; // 移除圖示，只留文字
+            btn.innerHTML = "<span>關閉視窗</span>";
             btn.className = "btn disabled";
             btn.onclick = (e) => { e.preventDefault(); liff.closeWindow(); };
         }
