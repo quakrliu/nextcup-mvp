@@ -1,17 +1,124 @@
-// 5. 執行核銷 (改良偵錯版)
-        async function redeemGift() {
-            let code = prompt("請店員輸入核銷密碼：");
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NextCup 禮物兌換</title>
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; text-align: center; padding: 20px; background-color: #f8f9fa; }
+        .card { background: white; border-radius: 15px; padding: 30px 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-top: 20px; }
+        h1 { color: #333; font-size: 24px; margin-bottom: 10px; }
+        #timer { font-size: 48px; color: #ff4b4b; font-weight: bold; margin: 20px 0; font-family: monospace; display:none; }
+        .btn { display:none; width: 100%; padding: 15px; background: #06c755; color: white; border: none; border-radius: 8px; font-size: 18px; font-weight: bold; cursor: pointer; }
+        .btn:active { background: #05b34c; }
+        .btn:disabled { background: #ccc; }
+        p { color: #666; }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <h1 id="status-text">🔄 連線確認中...</h1>
+        <p id="sub-text">正在查詢禮物狀態</p>
+        
+        <div id="timer">02:00:00</div>
+        
+        <button id="btn-redeem" class="btn" onclick="redeemGift()">店員核銷請點此</button>
+    </div>
+
+    <script>
+        // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+        // 【請填入您的資料】
+        
+        const AIRTABLE_TOKEN = 'patWFQeH1vf1ga28J.5d619ffcd3e5e85346fef6d8fd1ad308a5e4e951e630ea7392dff7fe4274662a';  // 👈 請把您的 Token 貼在引號裡面
+        const BASE_ID = 'appg9LVwwgUcig6Ze';          // 👈 請把 Base ID (app開頭) 貼在這裡
+        const TABLE_ID = 'tbl3Y1Jq4VmlcjQgI';         // 👈 請把 Table ID (tbl開頭) 貼在這裡
+        const LIFF_ID = '2008760789-8sSFZSxG';        // 👈 別忘了填回您的 LIFF ID
+       
+
+        // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+
+        let recordId = null; 
+
+        async function main() {
+            // 初始化 LIFF
+            try {
+                await liff.init({ liffId: LIFF_ID });
+            } catch (err) {
+                console.error("LIFF Init Error", err);
+            }
             
-            if (code !== "8888") {
-                alert("❌ 密碼錯誤");
+            // 抓取網址上的禮物 ID
+            const urlParams = new URLSearchParams(window.location.search);
+            const giftId = urlParams.get('id');
+
+            if (!giftId) {
+                showError("無效的連結", "找不到禮物編號 (No ID)");
                 return;
             }
 
+            // 去 Airtable 查狀態
+            await checkStatus(giftId);
+        }
+
+        async function checkStatus(giftId) {
+            const url = `https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}?filterByFormula={Gift_ID}='${giftId}'`;
+            
+            try {
+                const response = await fetch(url, {
+                    headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` }
+                });
+                const data = await response.json();
+
+                if (!data.records || data.records.length === 0) {
+                    showError("查無此券", "連結可能錯誤，請確認 ID");
+                    return;
+                }
+
+                const record = data.records[0];
+                recordId = record.id; 
+                const status = record.fields.Status;
+
+                if (status === 'Redeemed') {
+                    showError("❌ 此禮物已失效", "這杯咖啡已經被領過囉！");
+                } else {
+                    showActive();
+                }
+            } catch (e) {
+                console.error(e);
+                showError("連線錯誤", "無法連接資料庫，請檢查 Token 與 ID");
+            }
+        }
+
+        function showActive() {
+            document.getElementById('status-text').innerText = "☕️ 您有一杯咖啡待領取";
+            document.getElementById('sub-text').innerText = "來自好友的心意";
+            document.getElementById('timer').style.display = "block";
+            document.getElementById('btn-redeem').style.display = "block";
+            startTimer();
+        }
+
+        function showError(title, msg) {
+            document.getElementById('status-text').innerText = title;
+            document.getElementById('status-text').style.color = "#888";
+            document.getElementById('sub-text').innerText = msg;
+            document.getElementById('timer').style.display = "none";
+            document.getElementById('btn-redeem').style.display = "none";
+        }
+
+        async function redeemGift() {
+            let code = prompt("請店員輸入核銷密碼：");
+            if (code !== "8888") {
+                alert("❌ 密碼錯誤");
+                return;
+            } 
+            
             const btn = document.getElementById('btn-redeem');
             btn.innerText = "連線寫入中...";
             btn.disabled = true;
 
-            // 準備資料
+            // 準備要更新的資料 (只更新 Status)
             const data = {
                 fields: {
                     Status: 'Redeemed'
@@ -24,25 +131,4 @@
                 const response = await fetch(updateUrl, {
                     method: 'PATCH',
                     headers: {
-                        'Authorization': `Bearer ${AIRTABLE_TOKEN}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(data)
-                });
-
-                if (response.ok) {
-                    alert("✅ 核銷成功！狀態已更新。");
-                    location.reload(); 
-                } else {
-                    const err = await response.json();
-                    console.error("Airtable Error:", err);
-                    alert("⚠️ 核銷失敗！錯誤原因：\n" + err.error.type + ": " + err.error.message);
-                    btn.innerText = "店員核銷請點此";
-                    btn.disabled = false;
-                }
-            } catch (e) {
-                alert("❌ 連線發生錯誤：" + e);
-                btn.innerText = "店員核銷請點此";
-                btn.disabled = false;
-            }
-        }
+                        'Authorization
