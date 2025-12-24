@@ -11,48 +11,94 @@
         h1 { color: #d35400; font-size: 24px; margin-bottom: 10px; }
         p { color: #666; line-height: 1.6; }
         .btn { display:none; width: 100%; padding: 15px; background: #06c755; color: white; border: none; border-radius: 8px; font-size: 18px; font-weight: bold; cursor: pointer; text-decoration: none; margin-top: 20px; }
-        .loading { font-size: 18px; color: #888; margin-top: 20px; }
+        .btn.disabled { background-color: #ccc; pointer-events: none; }
+        .error { color: #ff4b4b; font-weight: bold; }
     </style>
 </head>
 <body>
 
     <div class="card">
-        <h1 id="title">🎁 正在包裝禮物...</h1>
-        <p id="desc">系統正在為您產生專屬連結<br>請稍候...</p>
+        <h1 id="title">🎁 正在確認資格...</h1>
+        <p id="desc">系統正在查詢您的送禮紀錄<br>請稍候...</p>
         
         <a id="btn-share" class="btn" href="#">LINE 給朋友</a>
     </div>
 
     <script>
         // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
-        // 【請填入您的資料】(跟 redeem.html 用一樣的)
+        // 【設定區】
         
         const AIRTABLE_TOKEN = 'patWFQeH1vf1ga28J.5d619ffcd3e5e85346fef6d8fd1ad308a5e4e951e630ea7392dff7fe4274662a'; 
         const BASE_ID = 'appg9LVwwgUcig6Ze';          
         const TABLE_ID = 'tbl3Y1Jq4VmlcjQgI';         
+        const LIFF_ID = '2008760789-8sSFZSxG'; // 您的 LIFF ID
         
-        // ⚠️ 重要：請把下面換成您 Vercel 的網址 (不要有 https://，只要網域)
-        // 例如： nextcup-mvp.vercel.app
+        // ⚠️ 請確認您的短網址 (不含 https://)
         const MY_DOMAIN = 'nextcup-mvp.vercel.app'; 
 
         // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
-        async function createGift() {
-            // 1. 自動產生一個亂數 ID (例如: Gift_1701234567890)
+        async function main() {
+            // 1. 初始化 LIFF 並登入 (為了拿到 User ID)
+            try {
+                await liff.init({ liffId: LIFF_ID });
+                if (!liff.isLoggedIn()) {
+                    liff.login(); // 沒登入就強制登入
+                    return;
+                }
+            } catch (err) {
+                console.error("LIFF Error", err);
+                alert("LIFF 初始化失敗");
+                return;
+            }
+
+            // 2. 取得使用者 ID
+            const profile = await liff.getProfile();
+            const userId = profile.userId;
+
+            // 3. 檢查是否已經送過
+            const hasSent = await checkHistory(userId);
+            
+            if (hasSent) {
+                showError("🚫 您已經送過禮物囉！", "每人限送一次。\n把機會讓給其他人吧！");
+            } else {
+                // 4. 沒送過 -> 開始製作
+                document.getElementById('title').innerText = "🎁 正在包裝禮物...";
+                createGift(userId);
+            }
+        }
+
+        async function checkHistory(userId) {
+            // 去 Airtable 搜尋有沒有這個 Sender_ID
+            const url = `https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}?filterByFormula={Sender_ID}='${userId}'`;
+            
+            try {
+                const response = await fetch(url, {
+                    headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` }
+                });
+                const data = await response.json();
+                // 如果找到大於 0 筆資料，代表送過了
+                return data.records.length > 0;
+            } catch (e) {
+                console.error(e);
+                return false; // 連線失敗預設當作沒送過，或可改成阻擋
+            }
+        }
+
+        async function createGift(userId) {
             const newGiftId = 'Gift_' + Date.now();
 
-            // 2. 準備寫入 Airtable 的資料
             const data = {
                 fields: {
                     Gift_ID: newGiftId,
-                    Status: 'Active'
+                    Status: 'Active',
+                    Sender_ID: userId  // 👈 這次會把是誰送的記下來！
                 }
             };
 
             const url = `https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}`;
 
             try {
-                // 3. 呼叫 Airtable API 存檔
                 const response = await fetch(url, {
                     method: 'POST',
                     headers: {
@@ -63,7 +109,6 @@
                 });
 
                 if (response.ok) {
-                    // 4. 成功！顯示分享按鈕
                     showSuccess(newGiftId);
                 } else {
                     alert("製作失敗，請重新整理頁面試試看");
@@ -76,13 +121,9 @@
 
         function showSuccess(giftId) {
             document.getElementById('title').innerText = "🎉 禮物包裝完成！";
-            document.getElementById('desc').innerText = "這杯咖啡已經準備好了\n趕快傳給朋友吧！";
+            document.getElementById('desc').innerText = "這是您唯一的送禮機會\n趕快傳給朋友吧！";
             
-            // 5. 組合出「領取頁」的完整連結
-            // 這裡會自動把網址編碼，讓 LINE 可以順利傳送
             const redeemLink = `https://${MY_DOMAIN}/redeem.html?id=${giftId}`;
-            
-            // 設定 LINE 分享連結 (Magic Link)
             const shareText = `嘿！這家咖啡不錯，我請你喝一杯！點這裡領取： ${redeemLink}`;
             const lineUrl = `https://line.me/R/msg/text/?${encodeURIComponent(shareText)}`;
             
@@ -91,8 +132,21 @@
             btn.href = lineUrl;
         }
 
-        // 打開網頁時自動執行
-        createGift();
+        function showError(title, msg) {
+            document.getElementById('title').innerText = title;
+            document.getElementById('title').className = "error";
+            document.getElementById('desc').innerText = msg;
+            
+            const btn = document.getElementById('btn-share');
+            btn.style.display = 'block';
+            btn.innerText = "關閉視窗";
+            btn.className = "btn disabled"; // 讓按鈕變灰
+            btn.style.backgroundColor = "#ccc";
+            btn.onclick = () => liff.closeWindow();
+        }
+
+        // 啟動
+        main();
 
     </script>
 </body>
