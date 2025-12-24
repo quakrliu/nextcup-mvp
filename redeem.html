@@ -11,26 +11,20 @@
         h1 { color: #333; font-size: 26px; margin-bottom: 10px; font-weight: 800; }
         p { color: #666; line-height: 1.6; }
         
-        /* 倒數計時器 */
         #timer { font-size: 48px; color: #ff4b4b; font-weight: bold; margin: 25px 0; font-family: monospace; display:none; }
         
-        /* 按鈕樣式 */
         .btn { display:none; width: 100%; padding: 15px; background: #06c755; color: white; border: none; border-radius: 12px; font-size: 18px; font-weight: bold; cursor: pointer; transition: transform 0.1s; }
         .btn:active { transform: scale(0.98); background: #05b34c; }
         .btn:disabled { background: #ccc; pointer-events: none; }
         
-        /* 載入中動畫 */
-        .loading { color: #888; font-size: 14px; margin-top: 20px; }
-        
-        /* 錯誤訊息紅字 */
         .error-text { color: #e74c3c; font-weight: bold; }
     </style>
 </head>
 <body>
 
     <div class="card">
-        <h1 id="status-text">🔄 身分確認中...</h1>
-        <p id="sub-text">正在查詢您的領取資格</p>
+        <h1 id="status-text">🔄 連線確認中...</h1>
+        <p id="sub-text">正在查詢禮物狀態</p>
         
         <div id="timer">02:00:00</div>
         
@@ -49,22 +43,18 @@
         // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
         let recordId = null; 
-        let currentUserId = null; // 用來存客人的 ID
+        let currentUserId = null; // 還是會試著抓 ID，但抓不到就算了
 
         async function main() {
-            // 1. 初始化 LIFF 並登入
+            // 1. 初始化 LIFF (嘗試抓 ID，但不強制登入)
             try {
                 await liff.init({ liffId: LIFF_ID });
-                if (!liff.isLoggedIn()) {
-                    liff.login(); // 沒登入就強制登入，才能知道是誰領的
-                    return;
+                if (liff.isLoggedIn()) {
+                    const profile = await liff.getProfile();
+                    currentUserId = profile.userId; // 有抓到就記下來，供老闆參考
                 }
-                const profile = await liff.getProfile();
-                currentUserId = profile.userId;
             } catch (err) {
-                console.error("LIFF Init Error", err);
-                showError("系統錯誤", "無法識別使用者身分");
-                return;
+                console.log("LIFF not ready (但沒關係，我們可以繼續)");
             }
             
             // 2. 抓取網址上的禮物 ID
@@ -76,35 +66,12 @@
                 return;
             }
 
-            // 3. 雙重檢查：(A) 檢查這張券的狀態 (B) 檢查這個人是否領過別張
-            await checkQualification(giftId, currentUserId);
-        }
-
-        async function checkQualification(giftId, userId) {
-            // 步驟 A: 檢查人 (是否已經在 Airtable 留過名，且狀態是 Redeemed)
-            // 搜尋條件：Receiver_ID 是這個人，而且 Status 是 Redeemed
-            const checkUserUrl = `https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}?filterByFormula=AND({Receiver_ID}='${userId}', {Status}='Redeemed')`;
-            
-            try {
-                const userRes = await fetch(checkUserUrl, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
-                const userData = await userRes.json();
-
-                if (userData.records.length > 0) {
-                    // 抓到了！這個人已經領過咖啡了
-                    showError("🚫 您已經領過囉！", "每人限領一次免費咖啡。\n把機會讓給其他新朋友吧！");
-                    return;
-                }
-
-                // 步驟 B: 檢查券 (如果人沒問題，才檢查這張券是否有效)
-                await checkGiftStatus(giftId);
-
-            } catch (e) {
-                console.error(e);
-                showError("連線錯誤", "無法查詢資格");
-            }
+            // 3. 直接檢查禮物狀態 (不再檢查「人」的歷史紀錄)
+            await checkGiftStatus(giftId);
         }
 
         async function checkGiftStatus(giftId) {
+            // 只看這張券的 Gift_ID 是否存在，以及是否被用過
             const url = `https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}?filterByFormula={Gift_ID}='${giftId}'`;
             
             try {
@@ -125,7 +92,7 @@
                 if (status === 'Redeemed') {
                     showError("❌ 此禮物已失效", "這杯咖啡已經被領過囉！");
                 } else {
-                    // 全部通過！顯示領取畫面
+                    // 通過！顯示領取畫面
                     showActive();
                 }
             } catch (e) {
@@ -143,7 +110,7 @@
 
         function showError(title, msg) {
             document.getElementById('status-text').innerText = title;
-            document.getElementById('status-text').className = "error-text"; // 變紅色
+            document.getElementById('status-text').className = "error-text";
             document.getElementById('sub-text').innerText = msg;
             document.getElementById('timer').style.display = "none";
             document.getElementById('btn-redeem').style.display = "none";
@@ -160,15 +127,19 @@
             btn.innerText = "正在核銷...";
             btn.disabled = true;
 
-            // 準備要更新的資料
-            // 這次我們要把 Receiver_ID (領取人) 也寫進去！
+            // 準備資料：狀態改為已領取、寫入時間、寫入領取人(如果有的話)
             const data = {
                 fields: {
                     Status: 'Redeemed',
-                    Redeemed_Time: new Date().toISOString(), // 寫入時間
-                    Receiver_ID: currentUserId               // 👈 寫入領取人 ID
+                    Redeemed_Time: new Date().toISOString()
                 }
             };
+            
+            // 如果有抓到 User ID，就順便記下來 (方便您以後統計)
+            // 如果沒抓到 (例如用電腦瀏覽器開)，就留空，不擋人
+            if (currentUserId) {
+                data.fields.Receiver_ID = currentUserId;
+            }
 
             const updateUrl = `https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}/${recordId}`;
             
